@@ -112,5 +112,22 @@ public class ProviderDAO {
         }
         return providers;
     }
+    
+    /**
+     * 验证医疗提供者
+     */
+    public boolean verifyProvider(int providerId) {
+        String sql = "UPDATE PROVIDER SET is_verified = TRUE, verified_at = CURRENT_TIMESTAMP WHERE provider_id = ?";
+        
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, providerId);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 }
 

@@ -4,6 +4,7 @@ import com.healthtrack.dao.AppointmentDAO;
 import com.healthtrack.dao.ProviderDAO;
 import com.healthtrack.model.Appointment;
 import com.healthtrack.model.Provider;
+import com.healthtrack.model.User;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -29,13 +30,23 @@ public class AppointmentServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
-        
+
+        User user = (User) session.getAttribute("user");
+
+        // 检查用户角色权限
+        if (!"Patient".equals(user.getUserRole()) && !"Caregiver".equals(user.getUserRole()) && !"Provider".equals(user.getUserRole())) {
+            request.setAttribute("error", "您没有访问此功能的权限");
+            request.getRequestDispatcher("/jsp/main.jsp").forward(request, response);
+            return;
+        }
+
         Integer userId = (Integer) session.getAttribute("userId");
         List<Provider> providers = providerDAO.getAllProviders();
         List<Appointment> appointments = appointmentDAO.getAppointmentsByUserId(userId);
-        
+
         request.setAttribute("providers", providers);
         request.setAttribute("appointments", appointments);
+        request.setAttribute("userRole", user.getUserRole());
         request.getRequestDispatcher("/jsp/appointment.jsp").forward(request, response);
     }
 
@@ -68,14 +79,14 @@ public class AppointmentServlet extends HttpServlet {
                 appointment.setMemo(memo);
                 
                 if (appointmentDAO.createAppointment(appointment, userId)) {
-                    request.setAttribute("success", "Appointment booked successfully");
+                    request.setAttribute("success", "预约成功");
                 } else {
-                    request.setAttribute("error", "Failed to book appointment");
+                    request.setAttribute("error", "预约失败");
                 }
             } catch (ParseException e) {
-                request.setAttribute("error", "Invalid date format");
+                request.setAttribute("error", "日期格式无效");
             } catch (Exception e) {
-                request.setAttribute("error", "Error booking appointment: " + e.getMessage());
+                request.setAttribute("error", "预约时发生错误: " + e.getMessage());
             }
         } else if ("cancel".equals(action)) {
             try {
@@ -83,12 +94,12 @@ public class AppointmentServlet extends HttpServlet {
                 String cancelReason = request.getParameter("cancelReason");
                 
                 if (appointmentDAO.cancelAppointment(actionId, cancelReason)) {
-                    request.setAttribute("success", "Appointment cancelled successfully");
+                    request.setAttribute("success", "预约取消成功");
                 } else {
-                    request.setAttribute("error", "Failed to cancel appointment. Make sure it's at least 24 hours before scheduled time.");
+                    request.setAttribute("error", "取消预约失败。请确保在预约时间前至少24小时取消。");
                 }
             } catch (Exception e) {
-                request.setAttribute("error", "Error cancelling appointment: " + e.getMessage());
+                request.setAttribute("error", "取消预约时发生错误: " + e.getMessage());
             }
         }
         

@@ -22,17 +22,17 @@ TRUNCATE TABLE USER;
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- 1. Insert USERS
-INSERT INTO USER (user_id, health_id, full_name, account_status, created_at) VALUES
-(1, 'HT001', 'Zhang Wei', 'Active', '2024-01-15 10:00:00'),
-(2, 'HT002', 'Li Mei', 'Active', '2024-01-20 14:30:00'),
-(3, 'HT003', 'Wang Gang', 'Active', '2024-02-01 09:15:00'),
-(4, 'HT004', 'Liu Fang', 'Active', '2024-02-10 16:45:00'),
-(5, 'HT005', 'Chen Ming', 'Active', '2024-02-15 11:20:00'),
-(6, 'HT006', 'Zhao Li', 'Active', '2024-03-01 13:00:00'),
-(7, 'HT007', 'Sun Lei', 'Active', '2024-03-05 10:30:00'),
-(8, 'HT008', 'Wu Jing', 'Inactive', '2024-03-10 15:00:00'),
-(9, 'HT009', 'Xu Hui', 'Active', '2024-03-15 09:00:00'),
-(10, 'HT010', 'Ma Lin', 'Active', '2024-03-20 14:00:00');
+INSERT INTO USER (user_id, health_id, full_name, account_status, user_role, created_at) VALUES
+(1, 'HT001', '张伟', 'Active', 'Patient', '2024-01-15 10:00:00'),
+(2, 'HT002', '李梅', 'Active', 'Patient', '2024-01-20 14:30:00'),
+(3, 'HT003', '王刚', 'Active', 'Patient', '2024-02-01 09:15:00'),
+(4, 'HT004', '刘芳', 'Active', 'Caregiver', '2024-02-10 16:45:00'),
+(5, 'HT005', '陈明', 'Active', 'Patient', '2024-02-15 11:20:00'),
+(6, 'HT006', '赵丽', 'Active', 'Patient', '2024-03-01 13:00:00'),
+(7, 'HT007', '孙磊', 'Active', 'Provider', '2024-03-05 10:30:00'),
+(8, 'HT008', '吴静', 'Inactive', 'Patient', '2024-03-10 15:00:00'),
+(9, 'HT009', '徐辉', 'Active', 'Caregiver', '2024-03-15 09:00:00'),
+(10, 'HT010', '马琳', 'Active', 'Admin', '2024-03-20 14:00:00');
 
 -- 2. Insert EMAILS (multiple emails per user)
 INSERT INTO EMAIL (email, user_id, is_verified, verified_at, created_at) VALUES
@@ -193,10 +193,19 @@ INSERT INTO MONTHLY_SUMMARY (monthly_summary_id, user_id, year, month, total_ste
 (14, 9, 2024, 3, 290000, 0, '2024-04-01 00:00:00', TRUE),
 (15, 10, 2024, 3, 280000, 0, '2024-04-01 00:00:00', TRUE);
 
+-- 14. Insert CAREGIVER_PATIENT relationships
+INSERT INTO CAREGIVER_PATIENT (caregiver_patient_id, caregiver_id, patient_id, relationship, status, linked_at, approved_at, notes) VALUES
+(1, 4, 1, '配偶', 'Active', '2024-02-15 10:00:00', '2024-02-15 11:00:00', '负责照顾张伟的日常健康'),
+(2, 4, 3, '亲属', 'Active', '2024-02-20 10:00:00', '2024-02-20 14:00:00', '协助管理王刚的医疗预约'),
+(3, 9, 2, '子女', 'Active', '2024-03-18 10:00:00', '2024-03-18 15:00:00', '照顾母亲李梅的健康'),
+(4, 9, 6, '亲属', 'Pending', '2024-03-25 10:00:00', NULL, '等待赵丽确认'),
+(5, 4, 5, '邻居', 'Inactive', '2024-02-25 10:00:00', '2024-02-26 10:00:00', '临时照顾关系已结束');
+
 -- Verify data integrity
 SELECT 'Data population completed successfully!' AS Status;
 SELECT COUNT(*) AS TotalUsers FROM USER;
 SELECT COUNT(*) AS TotalProviders FROM PROVIDER;
 SELECT COUNT(*) AS TotalAppointments FROM APPOINTMENT;
 SELECT COUNT(*) AS TotalChallenges FROM CHALLENGE;
+SELECT COUNT(*) AS TotalCaregiverPatient FROM CAREGIVER_PATIENT;
 

@@ -7,6 +7,7 @@ import com.healthtrack.dao.SummaryDAO;
 import com.healthtrack.model.Challenge;
 import com.healthtrack.model.MonthlySummary;
 import com.healthtrack.model.User;
+import javax.servlet.http.HttpSession;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -32,11 +33,20 @@ public class SummaryServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
-        
+
+        User user = (User) session.getAttribute("user");
+
+        // 检查用户角色权限
+        if (!"Patient".equals(user.getUserRole()) && !"Caregiver".equals(user.getUserRole()) && !"Admin".equals(user.getUserRole())) {
+            request.setAttribute("error", "您没有访问此功能的权限");
+            request.getRequestDispatcher("/jsp/main.jsp").forward(request, response);
+            return;
+        }
+
         Integer userId = (Integer) session.getAttribute("userId");
         String yearParam = request.getParameter("year");
         String monthParam = request.getParameter("month");
-        
+
         int year = yearParam != null ? Integer.parseInt(yearParam) : 2024;
         int month = monthParam != null ? Integer.parseInt(monthParam) : 3;
         

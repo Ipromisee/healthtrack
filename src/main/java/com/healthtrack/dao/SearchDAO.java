@@ -27,6 +27,7 @@ public class SearchDAO {
                     rs.getString("health_id"),
                     rs.getString("full_name"),
                     rs.getString("account_status"),
+                    rs.getString("user_role"),
                     rs.getTimestamp("created_at")
                 ));
             }
@@ -136,6 +137,7 @@ public class SearchDAO {
                     rs.getString("health_id"),
                     rs.getString("full_name"),
                     rs.getString("account_status"),
+                    rs.getString("user_role"),
                     rs.getTimestamp("created_at")
                 ));
             }

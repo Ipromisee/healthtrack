@@ -8,6 +8,7 @@ public class User {
     private String healthId;
     private String fullName;
     private String accountStatus;
+    private String userRole;
     private Timestamp createdAt;
     private List<Email> emails;
     private Phone phone;
@@ -16,11 +17,12 @@ public class User {
     public User() {
     }
 
-    public User(int userId, String healthId, String fullName, String accountStatus, Timestamp createdAt) {
+    public User(int userId, String healthId, String fullName, String accountStatus, String userRole, Timestamp createdAt) {
         this.userId = userId;
         this.healthId = healthId;
         this.fullName = fullName;
         this.accountStatus = accountStatus;
+        this.userRole = userRole;
         this.createdAt = createdAt;
     }
 
@@ -55,6 +57,14 @@ public class User {
 
     public void setAccountStatus(String accountStatus) {
         this.accountStatus = accountStatus;
+    }
+
+    public String getUserRole() {
+        return userRole;
+    }
+
+    public void setUserRole(String userRole) {
+        this.userRole = userRole;
     }
 
     public Timestamp getCreatedAt() {

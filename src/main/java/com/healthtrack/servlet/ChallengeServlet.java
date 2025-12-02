@@ -3,6 +3,7 @@ package com.healthtrack.servlet;
 import com.healthtrack.dao.ChallengeDAO;
 import com.healthtrack.dao.UserDAO;
 import com.healthtrack.model.Challenge;
+import com.healthtrack.model.ChallengeParticipant;
 import com.healthtrack.model.User;
 
 import javax.servlet.ServletException;
@@ -14,6 +15,7 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.sql.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @WebServlet("/challenge")
 public class ChallengeServlet extends HttpServlet {
@@ -27,11 +29,54 @@ public class ChallengeServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
-        
-        Integer userId = (Integer) session.getAttribute("userId");
-        List<Challenge> challenges = challengeDAO.getChallengesByUserId(userId);
-        
-        request.setAttribute("challenges", challenges);
+
+        User user = (User) session.getAttribute("user");
+        String userRole = user.getUserRole();
+        int userId = user.getUserId();
+
+        request.setAttribute("userRole", userRole);
+
+        switch (userRole) {
+            case "Provider":
+                // 医疗提供者可以创建和管理挑战
+                List<Challenge> createdChallenges = challengeDAO.getChallengesByUserId(userId);
+                request.setAttribute("createdChallenges", createdChallenges);
+                
+                // 获取每个挑战的参与者
+                for (Challenge challenge : createdChallenges) {
+                    List<ChallengeParticipant> participants = challengeDAO.getParticipantsByChallengeId(challenge.getActionId());
+                    challenge.setParticipants(participants);
+                }
+                break;
+                
+            case "Patient":
+            case "Caregiver":
+                // 患者和照顾者可以查看被邀请的挑战
+                List<ChallengeParticipant> allInvitations = challengeDAO.getInvitedChallenges(userId);
+                
+                // 分类：待处理邀请、已加入、已拒绝
+                List<ChallengeParticipant> pendingInvitations = allInvitations.stream()
+                    .filter(cp -> "Invited".equals(cp.getParticipantStatus()))
+                    .collect(Collectors.toList());
+                List<ChallengeParticipant> joinedChallenges = allInvitations.stream()
+                    .filter(cp -> "Joined".equals(cp.getParticipantStatus()))
+                    .collect(Collectors.toList());
+                
+                request.setAttribute("pendingInvitations", pendingInvitations);
+                request.setAttribute("joinedChallenges", joinedChallenges);
+                break;
+                
+            case "Admin":
+                // 管理员可以查看所有活跃挑战
+                List<Challenge> allChallenges = challengeDAO.getAllActiveChallenges();
+                request.setAttribute("allChallenges", allChallenges);
+                
+                // 获取热门挑战
+                List<Challenge> popularChallenges = challengeDAO.getChallengesWithMostParticipants(5);
+                request.setAttribute("popularChallenges", popularChallenges);
+                break;
+        }
+
         request.getRequestDispatcher("/jsp/challenge.jsp").forward(request, response);
     }
 
@@ -43,51 +88,148 @@ public class ChallengeServlet extends HttpServlet {
             return;
         }
         
-        Integer userId = (Integer) session.getAttribute("userId");
+        User user = (User) session.getAttribute("user");
+        int userId = user.getUserId();
+        String userRole = user.getUserRole();
         String action = request.getParameter("action");
         
-        if ("create".equals(action)) {
-            try {
-                String goal = request.getParameter("goal");
-                Date startDate = Date.valueOf(request.getParameter("startDate"));
-                Date endDate = Date.valueOf(request.getParameter("endDate"));
-                String status = request.getParameter("status");
-                
-                Challenge challenge = new Challenge();
-                challenge.setGoal(goal);
-                challenge.setStartDate(startDate);
-                challenge.setEndDate(endDate);
-                challenge.setStatus(status);
-                
-                if (challengeDAO.createChallenge(challenge, userId)) {
-                    request.setAttribute("success", "Challenge created successfully");
-                } else {
-                    request.setAttribute("error", "Failed to create challenge");
+        switch (action) {
+            case "create":
+                // 只有医疗提供者可以创建挑战
+                if (!"Provider".equals(userRole)) {
+                    request.setAttribute("error", "只有医疗服务提供者才能创建健康挑战");
+                    break;
                 }
-            } catch (Exception e) {
-                request.setAttribute("error", "Error creating challenge: " + e.getMessage());
-            }
-        } else if ("addParticipant".equals(action)) {
-            try {
-                int actionId = Integer.parseInt(request.getParameter("actionId"));
-                String healthId = request.getParameter("healthId");
-                User participantUser = userDAO.getUserByHealthId(healthId);
+                handleCreateChallenge(request, userId);
+                break;
                 
-                if (participantUser != null) {
-                    if (challengeDAO.addParticipant(actionId, participantUser.getUserId())) {
-                        request.setAttribute("success", "Participant added successfully");
-                    } else {
-                        request.setAttribute("error", "Failed to add participant");
-                    }
-                } else {
-                    request.setAttribute("error", "User not found with Health ID: " + healthId);
+            case "addParticipant":
+                // 只有医疗提供者可以邀请患者
+                if (!"Provider".equals(userRole)) {
+                    request.setAttribute("error", "只有医疗服务提供者才能邀请患者参与挑战");
+                    break;
                 }
-            } catch (Exception e) {
-                request.setAttribute("error", "Error adding participant: " + e.getMessage());
-            }
+                handleAddParticipant(request);
+                break;
+                
+            case "acceptInvitation":
+                // 患者和照顾者可以接受邀请
+                if (!"Patient".equals(userRole) && !"Caregiver".equals(userRole)) {
+                    request.setAttribute("error", "权限不足");
+                    break;
+                }
+                handleAcceptInvitation(request, userId);
+                break;
+                
+            case "declineInvitation":
+                // 患者和照顾者可以拒绝邀请
+                if (!"Patient".equals(userRole) && !"Caregiver".equals(userRole)) {
+                    request.setAttribute("error", "权限不足");
+                    break;
+                }
+                handleDeclineInvitation(request, userId);
+                break;
+                
+            case "updateProgress":
+                // 患者可以更新进度
+                handleUpdateProgress(request, userId);
+                break;
+                
+            default:
+                request.setAttribute("error", "未知操作");
         }
         
         doGet(request, response);
     }
+    
+    private void handleCreateChallenge(HttpServletRequest request, int userId) {
+        try {
+            String goal = request.getParameter("goal");
+            Date startDate = Date.valueOf(request.getParameter("startDate"));
+            Date endDate = Date.valueOf(request.getParameter("endDate"));
+            String status = request.getParameter("status");
+            
+            Challenge challenge = new Challenge();
+            challenge.setGoal(goal);
+            challenge.setStartDate(startDate);
+            challenge.setEndDate(endDate);
+            challenge.setStatus(status);
+            
+            if (challengeDAO.createChallenge(challenge, userId)) {
+                request.setAttribute("success", "健康挑战创建成功！您可以邀请患者参与此挑战。");
+            } else {
+                request.setAttribute("error", "挑战创建失败，请重试");
+            }
+        } catch (Exception e) {
+            request.setAttribute("error", "创建挑战时发生错误: " + e.getMessage());
+        }
+    }
+    
+    private void handleAddParticipant(HttpServletRequest request) {
+        try {
+            int actionId = Integer.parseInt(request.getParameter("actionId"));
+            String healthId = request.getParameter("healthId");
+            User participantUser = userDAO.getUserByHealthId(healthId);
+            
+            if (participantUser == null) {
+                request.setAttribute("error", "未找到健康ID为 " + healthId + " 的用户");
+                return;
+            }
+            
+            if (!"Patient".equals(participantUser.getUserRole())) {
+                request.setAttribute("error", "只能邀请患者参与健康挑战");
+                return;
+            }
+            
+            if (challengeDAO.addParticipant(actionId, participantUser.getUserId())) {
+                request.setAttribute("success", "已向 " + participantUser.getFullName() + " 发送挑战邀请");
+            } else {
+                request.setAttribute("error", "邀请发送失败");
+            }
+        } catch (Exception e) {
+            request.setAttribute("error", "添加参与者时发生错误: " + e.getMessage());
+        }
+    }
+    
+    private void handleAcceptInvitation(HttpServletRequest request, int userId) {
+        try {
+            int challengeParticipantId = Integer.parseInt(request.getParameter("challengeParticipantId"));
+            if (challengeDAO.acceptInvitation(challengeParticipantId, userId)) {
+                request.setAttribute("success", "您已成功加入该健康挑战！");
+            } else {
+                request.setAttribute("error", "加入挑战失败");
+            }
+        } catch (Exception e) {
+            request.setAttribute("error", "接受邀请时发生错误: " + e.getMessage());
+        }
+    }
+    
+    private void handleDeclineInvitation(HttpServletRequest request, int userId) {
+        try {
+            int challengeParticipantId = Integer.parseInt(request.getParameter("challengeParticipantId"));
+            if (challengeDAO.declineInvitation(challengeParticipantId, userId)) {
+                request.setAttribute("success", "已拒绝该挑战邀请");
+            } else {
+                request.setAttribute("error", "拒绝邀请失败");
+            }
+        } catch (Exception e) {
+            request.setAttribute("error", "拒绝邀请时发生错误: " + e.getMessage());
+        }
+    }
+    
+    private void handleUpdateProgress(HttpServletRequest request, int userId) {
+        try {
+            int challengeParticipantId = Integer.parseInt(request.getParameter("challengeParticipantId"));
+            double progressValue = Double.parseDouble(request.getParameter("progressValue"));
+            String progressUnit = request.getParameter("progressUnit");
+            
+            if (challengeDAO.updateProgress(challengeParticipantId, userId, progressValue, progressUnit)) {
+                request.setAttribute("success", "进度更新成功！");
+            } else {
+                request.setAttribute("error", "进度更新失败");
+            }
+        } catch (Exception e) {
+            request.setAttribute("error", "更新进度时发生错误: " + e.getMessage());
+        }
+    }
 }
-

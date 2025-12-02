@@ -25,7 +25,7 @@ public class LoginServlet extends HttpServlet {
         String healthId = request.getParameter("healthId");
         
         if (healthId == null || healthId.trim().isEmpty()) {
-            request.setAttribute("error", "Health ID is required");
+            request.setAttribute("error", "请输入健康ID");
             request.getRequestDispatcher("/jsp/index.jsp").forward(request, response);
             return;
         }
@@ -38,7 +38,7 @@ public class LoginServlet extends HttpServlet {
             session.setAttribute("userId", user.getUserId());
             response.sendRedirect(request.getContextPath() + "/main");
         } else {
-            request.setAttribute("error", "Invalid Health ID");
+            request.setAttribute("error", "无效的健康ID");
             request.getRequestDispatcher("/jsp/index.jsp").forward(request, response);
         }
     }

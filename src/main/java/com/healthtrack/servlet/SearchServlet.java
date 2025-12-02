@@ -4,6 +4,8 @@ import com.healthtrack.dao.ProviderDAO;
 import com.healthtrack.dao.SearchDAO;
 import com.healthtrack.model.Appointment;
 import com.healthtrack.model.Provider;
+import com.healthtrack.model.User;
+import javax.servlet.http.HttpSession;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -27,9 +29,19 @@ public class SearchServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
-        
+
+        User user = (User) session.getAttribute("user");
+
+        // 检查用户角色权限 - 只有Provider和Admin可以搜索
+        if (!"Provider".equals(user.getUserRole()) && !"Admin".equals(user.getUserRole())) {
+            request.setAttribute("error", "您没有访问此功能的权限");
+            request.getRequestDispatcher("/jsp/main.jsp").forward(request, response);
+            return;
+        }
+
         List<Provider> providers = providerDAO.getAllProviders();
         request.setAttribute("providers", providers);
+        request.setAttribute("userRole", user.getUserRole());
         request.getRequestDispatcher("/jsp/search.jsp").forward(request, response);
     }
 

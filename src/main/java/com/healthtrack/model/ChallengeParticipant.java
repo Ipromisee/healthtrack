@@ -12,6 +12,7 @@ public class ChallengeParticipant {
     private Timestamp updatedAt;
     private String participantStatus;
     private User user;
+    private Challenge challenge;
 
     public ChallengeParticipant() {
     }
@@ -90,5 +91,12 @@ public class ChallengeParticipant {
     public void setUser(User user) {
         this.user = user;
     }
-}
 
+    public Challenge getChallenge() {
+        return challenge;
+    }
+
+    public void setChallenge(Challenge challenge) {
+        this.challenge = challenge;
+    }
+}

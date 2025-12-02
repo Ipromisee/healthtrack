@@ -2,36 +2,44 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <title>Search Records - Health Track</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>记录搜索 - 健康追踪</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Search Records</h1>
+            <h1>记录搜索</h1>
         </header>
         
         <nav>
             <ul>
-                <li><a href="${pageContext.request.contextPath}/main">Main Menu</a></li>
-                <li><a href="${pageContext.request.contextPath}/search">Search Records</a></li>
-                <li><a href="${pageContext.request.contextPath}/logout">Sign Out</a></li>
+                <li><a href="${pageContext.request.contextPath}/main">主菜单</a></li>
+                <li><a href="${pageContext.request.contextPath}/search">记录搜索</a></li>
+                <li><a href="${pageContext.request.contextPath}/logout">退出登录</a></li>
             </ul>
         </nav>
         
         <div class="section">
-            <h3>Search Appointments</h3>
+            <h3>
+                <c:choose>
+                    <c:when test="${userRole == 'Provider'}">搜索患者记录</c:when>
+                    <c:when test="${userRole == 'Admin'}">系统记录搜索</c:when>
+                    <c:otherwise>搜索预约记录</c:otherwise>
+                </c:choose>
+            </h3>
             <form method="post" action="${pageContext.request.contextPath}/search">
                 <div class="form-group">
-                    <label for="healthId">Health ID:</label>
-                    <input type="text" id="healthId" name="healthId" value="${searchHealthId}" placeholder="Enter Health ID">
+                    <label for="healthId">健康ID：</label>
+                    <input type="text" id="healthId" name="healthId" value="${searchHealthId}" placeholder="请输入健康ID">
                 </div>
                 <div class="form-group">
-                    <label for="providerId">Provider:</label>
+                    <label for="providerId">医疗服务提供者：</label>
                     <select id="providerId" name="providerId">
-                        <option value="">-- All Providers --</option>
+                        <option value="">-- 所有提供者 --</option>
                         <c:forEach var="provider" items="${providers}">
                             <option value="${provider.providerId}" ${searchProviderId == provider.providerId ? 'selected' : ''}>
                                 ${provider.providerName} (${provider.licenseNo})
@@ -40,38 +48,39 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="consultationType">Consultation Type:</label>
+                    <label for="consultationType">就诊类型：</label>
                     <select id="consultationType" name="consultationType">
-                        <option value="">-- All Types --</option>
-                        <option value="InPerson" ${searchConsultationType == 'InPerson' ? 'selected' : ''}>In Person</option>
-                        <option value="Virtual" ${searchConsultationType == 'Virtual' ? 'selected' : ''}>Virtual</option>
+                        <option value="">-- 所有类型 --</option>
+                        <option value="InPerson" ${searchConsultationType == 'InPerson' ? 'selected' : ''}>面诊</option>
+                        <option value="Virtual" ${searchConsultationType == 'Virtual' ? 'selected' : ''}>远程</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="startDate">Start Date:</label>
+                    <label for="startDate">开始日期：</label>
                     <input type="date" id="startDate" name="startDate" value="${searchStartDate}">
                 </div>
                 <div class="form-group">
-                    <label for="endDate">End Date:</label>
+                    <label for="endDate">结束日期：</label>
                     <input type="date" id="endDate" name="endDate" value="${searchEndDate}">
                 </div>
-                <button type="submit">Search</button>
+                <button type="submit" style="width: 100%;">搜索</button>
             </form>
         </div>
         
         <c:if test="${not empty appointments}">
             <div class="section">
-                <h3>Search Results</h3>
+                <h3>搜索结果</h3>
+                <p style="margin-bottom: 15px; color: #666;">找到 ${appointments.size()} 条记录</p>
                 <table>
                     <thead>
                         <tr>
-                            <th>Health ID</th>
-                            <th>Patient Name</th>
-                            <th>Provider</th>
-                            <th>Date & Time</th>
-                            <th>Type</th>
-                            <th>Status</th>
-                            <th>Memo</th>
+                            <th>健康ID</th>
+                            <th>患者姓名</th>
+                            <th>提供者</th>
+                            <th>日期时间</th>
+                            <th>类型</th>
+                            <th>状态</th>
+                            <th>备注</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -81,8 +90,20 @@
                                 <td>${appointment.user.fullName}</td>
                                 <td>${appointment.provider.providerName}</td>
                                 <td><fmt:formatDate value="${appointment.scheduledAt}" pattern="yyyy-MM-dd HH:mm" /></td>
-                                <td>${appointment.consultationType}</td>
-                                <td>${appointment.status}</td>
+                                <td>${appointment.consultationType == 'InPerson' ? '面诊' : '远程'}</td>
+                                <td>
+                                    <c:choose>
+                                        <c:when test="${appointment.status == 'Scheduled'}">
+                                            <span class="badge badge-success">已预约</span>
+                                        </c:when>
+                                        <c:when test="${appointment.status == 'Cancelled'}">
+                                            <span class="badge badge-warning">已取消</span>
+                                        </c:when>
+                                        <c:otherwise>
+                                            <span class="badge badge-info">${appointment.status}</span>
+                                        </c:otherwise>
+                                    </c:choose>
+                                </td>
                                 <td>${appointment.memo}</td>
                             </tr>
                         </c:forEach>
@@ -92,9 +113,8 @@
         </c:if>
         
         <c:if test="${empty appointments && not empty searchHealthId}">
-            <div class="alert alert-error">No appointments found matching your search criteria.</div>
+            <div class="alert alert-error">未找到匹配的预约记录</div>
         </c:if>
     </div>
 </body>
 </html>
-

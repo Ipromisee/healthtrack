@@ -4,7 +4,7 @@ Health Track个人健康平台 - Phase 3实现
 
 ## 项目简介
 
-Health Track是一个个人健康管理平台，允许用户跟踪健康指标、管理医疗预约、创建和参与健康挑战等。
+Health Track是一个个人健康管理平台，允许用户跟踪健康指标、管理医疗预约、创建和参与健康挑战等。系统实现了完整的基于角色的访问控制(RBAC)，不同角色的用户拥有不同的功能权限。
 
 ## 技术栈
 
@@ -19,26 +19,26 @@ Health Track是一个个人健康管理平台，允许用户跟踪健康指标�
 ```
 assign3/
 ├── sql/
-│   ├── create_tables.sql      # 数据库表结构
+│   ├── create_tables.sql       # 数据库表结构
 │   ├── create_triggers.sql     # 数据库触发器
 │   └── populate_data.sql       # 样本数据
 ├── src/
 │   └── main/
 │       ├── java/com/healthtrack/
 │       │   ├── model/          # 实体类
-│       │   ├── dao/             # 数据访问层
-│       │   ├── servlet/         # 控制器
-│       │   └── util/            # 工具类
+│       │   ├── dao/            # 数据访问层
+│       │   ├── servlet/        # 控制器
+│       │   └── util/           # 工具类
 │       └── webapp/
 │           ├── WEB-INF/
-│           │   └── web.xml      # Web配置
-│           ├── css/             # 样式文件
-│           ├── js/              # JavaScript文件
-│           └── jsp/              # JSP页面
+│           │   └── web.xml     # Web配置
+│           ├── css/            # 样式文件
+│           ├── js/             # JavaScript文件
+│           └── jsp/            # JSP页面
 ├── docs/
-│   └── project_d3.md            # 项目文档
-├── pom.xml                      # Maven配置
-└── README.md                    # 本文件
+│   └── project_d3.md           # 项目文档
+├── pom.xml                     # Maven配置
+└── README.md                   # 本文件
 ```
 
 ## 环境要求
@@ -78,7 +78,7 @@ source sql/populate_data.sql;
 编辑 `src/main/java/com/healthtrack/util/DBConnection.java`，修改数据库连接信息：
 
 ```java
-private static final String DB_URL = "jdbc:mysql://localhost:3306/healthtrack?useSSL=false&serverTimezone=UTC&characterEncoding=utf8";
+private static final String DB_URL = "jdbc:mysql://localhost:3306/healthtrack?useSSL=false&serverTimezone=UTC&characterEncoding=utf8&allowPublicKeyRetrieval=true";
 private static final String DB_USER = "root";        // 修改为你的MySQL用户名
 private static final String DB_PASSWORD = "root";   // 修改为你的MySQL密码
 ```
@@ -115,27 +115,138 @@ mvn tomcat7:run
 
 1. 访问应用首页
 2. 使用以下Health ID之一登录：
-   - HT001, HT002, HT003, HT004, HT005
-   - HT006, HT007, HT008, HT009, HT010
 
-### 主要功能
+| 健康ID | 用户角色 | 姓名 | 说明 |
+|--------|----------|------|------|
+| HT001 | Patient | 张伟 | 普通患者用户 |
+| HT002 | Patient | 李梅 | 普通患者用户 |
+| HT003 | Patient | 王刚 | 普通患者用户 |
+| HT004 | Caregiver | 刘芳 | 照顾者用户（关联了患者） |
+| HT005 | Patient | 陈明 | 普通患者用户 |
+| HT006 | Patient | 赵丽 | 普通患者用户 |
+| HT007 | Provider | 孙磊 | 医疗服务提供者 |
+| HT008 | Patient | 吴静 | 普通患者用户（未激活） |
+| HT009 | Caregiver | 徐辉 | 照顾者用户 |
+| HT010 | Admin | 马琳 | 系统管理员 |
 
-1. **Account Info**: 查看和编辑个人信息、管理邮箱/手机号、关联医疗服务提供者
-2. **Book Appointment**: 预约医疗服务提供者，查看和管理预约
-3. **Create Challenge**: 创建健康挑战，添加参与者
-4. **Monthly Summary**: 查看月度健康汇总和统计信息
-5. **Search Records**: 根据多种条件搜索健康记录
+## 用户角色与权限
+
+### 👤 患者 (Patient)
+
+**可用功能：**
+- ✅ 预约医疗服务提供者
+- ✅ 查看和接受医生发起的健康挑战邀请
+- ✅ 更新挑战进度
+- ✅ 查看个人月度健康汇总
+- ✅ 管理个人基本信息（姓名）
+- ✅ 管理邮箱和手机号
+- ✅ 关联医疗服务提供者
+- ✅ 批准/拒绝照顾者的关联请求
+
+**限制：**
+- ❌ 不能修改账户状态
+- ❌ 不能修改用户角色
+- ❌ 不能创建健康挑战（只能接受邀请）
+
+### 🩺 医疗服务提供者 (Provider)
+
+**可用功能：**
+- ✅ 创建健康挑战
+- ✅ 邀请患者参与挑战
+- ✅ 查看挑战参与者和进度
+- ✅ 查看和管理患者的预约请求
+- ✅ 搜索患者健康记录
+- ✅ 管理个人资质信息
+
+**特有功能：**
+- 🎯 只有Provider可以创建健康挑战
+- 🎯 只有Provider可以邀请患者参加挑战
+
+### 💝 照顾者 (Caregiver)
+
+**可用功能：**
+- ✅ 申请关联患者（发送照顾请求）
+- ✅ 监控已关联患者的健康状况
+  - 查看患者的预约记录
+  - 查看患者的挑战参与情况
+  - 查看患者的月度健康汇总
+- ✅ 接受医生发起的健康挑战邀请
+- ✅ 为被照顾者预约医疗服务
+- ✅ 管理个人信息
+
+**特有功能：**
+- 💝 患者监护中心：专属监护页面
+- 💝 需要患者确认后才能建立照顾关系
+
+### ⚙️ 管理员 (Admin)
+
+**可用功能：**
+- ✅ 管理所有用户的账户状态（Active/Inactive/Suspended）
+- ✅ 管理所有用户的角色分配
+- ✅ 验证医疗服务提供者资质
+- ✅ 查看系统统计数据
+- ✅ 搜索全系统健康记录
+- ✅ 管理健康挑战活动
+
+**特有功能：**
+- ⚙️ 系统管理中心：用户和提供者管理
+- ⚙️ 用户角色和状态的唯一修改权限
+
+## 主要功能模块
+
+### 1. 账户信息 (`/account`)
+- 查看和编辑个人资料
+- 管理邮箱地址（可多个）
+- 管理手机号码（最多一个）
+- 关联医疗服务提供者（患者/照顾者）
+- 管理照顾关系请求（患者）
+
+### 2. 预约服务 (`/appointment`)
+- 搜索医疗服务提供者
+- 创建新预约
+- 查看预约历史
+- 取消预约（需提前24小时）
+
+### 3. 健康挑战 (`/challenge`)
+- **医疗提供者**: 创建挑战、邀请患者
+- **患者/照顾者**: 接受/拒绝邀请、更新进度
+- **管理员**: 查看热门挑战、管理挑战
+
+### 4. 患者监护 (`/caregiver`)
+- 照顾者专属功能
+- 发送照顾请求
+- 查看被照顾者健康数据
+
+### 5. 系统管理 (`/admin`)
+- 管理员专属功能
+- 用户管理（角色/状态）
+- 提供者验证
+- 系统统计
+
+### 6. 月度汇总 (`/summary`)
+- 查看健康统计数据
+- 步数、预约次数等指标
+
+### 7. 数据搜索 (`/search`)
+- 多条件搜索健康记录
+- 按日期、提供者、类型等筛选
 
 ## 数据库说明
 
 ### 主要表结构
 
-- **USER**: 用户基本信息
+- **USER**: 用户基本信息（含user_role字段）
 - **EMAIL**: 用户邮箱（多值）
 - **PHONE**: 用户手机号（0..1）
 - **PROVIDER**: 医疗服务提供者
+- **USER_PROVIDER**: 用户-提供者关联
+- **CAREGIVER_PATIENT**: 照顾者-患者关联 ⭐ 新增
 - **APPOINTMENT**: 医疗预约
 - **CHALLENGE**: 健康挑战
+- **CHALLENGE_PARTICIPANT**: 挑战参与者
+- **INVITATION**: 邀请记录
+- **FAMILY_GROUP**: 家庭组
+- **GROUP_MEMBER**: 家庭组成员
 - **MONTHLY_SUMMARY**: 月度健康汇总
 
 ### 关键约束
@@ -146,6 +257,7 @@ mvn tomcat7:run
 - 预约取消需提前至少24小时
 - 家庭组至少需要2名活跃成员
 - 邀请的target_email和target_phone互斥
+- 照顾关系需要患者确认后才能生效
 
 ## 开发说明
 
@@ -162,6 +274,7 @@ mvn tomcat7:run
 - 添加必要的注释
 - 处理异常情况
 - 验证用户输入
+- 使用JSTL条件标签实现角色权限控制
 
 ## 故障排除
 
@@ -170,6 +283,7 @@ mvn tomcat7:run
 - 检查MySQL服务是否运行
 - 验证数据库连接信息是否正确
 - 确认数据库已创建且表已初始化
+- MySQL 8.0+需添加 `allowPublicKeyRetrieval=true`
 
 ### 编译错误
 
@@ -187,11 +301,14 @@ mvn tomcat7:run
 
 系统已预填充以下测试数据：
 
-- 10个用户账户
+- 10个用户账户（包含4种角色）
 - 8个医疗服务提供者
 - 10个预约记录
 - 6个健康挑战
+- 15个挑战参与者
+- 8个邀请记录
 - 3个家庭组
+- 5条照顾者-患者关系
 - 15条月度汇总记录
 
 ## 贡献者
@@ -207,4 +324,3 @@ mvn tomcat7:run
 ## 联系方式
 
 如有问题，请联系项目组成员。
-

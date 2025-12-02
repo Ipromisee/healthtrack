@@ -31,8 +31,10 @@ CREATE TABLE USER (
     health_id VARCHAR(50) NOT NULL UNIQUE COMMENT 'Candidate key',
     full_name VARCHAR(100) NOT NULL,
     account_status ENUM('Active', 'Inactive', 'Suspended') DEFAULT 'Active',
+    user_role ENUM('Patient', 'Provider', 'Caregiver', 'Admin') DEFAULT 'Patient' COMMENT 'User role in the system',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_health_id (health_id)
+    INDEX idx_health_id (health_id),
+    INDEX idx_user_role (user_role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2. EMAIL Table (Multi-valued attribute)
@@ -224,5 +226,23 @@ CREATE TABLE MONTHLY_SUMMARY (
     INDEX idx_year_month (year, month),
     CONSTRAINT chk_month_range CHECK (month >= 1 AND month <= 12),
     CONSTRAINT chk_year_range CHECK (year >= 2000 AND year <= 2100)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 14. CAREGIVER_PATIENT Table (Caregivers can monitor patients)
+CREATE TABLE CAREGIVER_PATIENT (
+    caregiver_patient_id INT AUTO_INCREMENT PRIMARY KEY,
+    caregiver_id INT NOT NULL COMMENT 'User with Caregiver role',
+    patient_id INT NOT NULL COMMENT 'User with Patient role',
+    relationship VARCHAR(50) COMMENT 'e.g., Parent, Spouse, Child, Other',
+    status ENUM('Active', 'Inactive', 'Pending') DEFAULT 'Pending',
+    linked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    approved_at TIMESTAMP NULL,
+    notes TEXT,
+    FOREIGN KEY (caregiver_id) REFERENCES USER(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (patient_id) REFERENCES USER(user_id) ON DELETE CASCADE,
+    UNIQUE KEY uk_caregiver_patient (caregiver_id, patient_id),
+    INDEX idx_caregiver_id (caregiver_id),
+    INDEX idx_patient_id (patient_id),
+    INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

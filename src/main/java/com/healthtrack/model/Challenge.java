@@ -10,6 +10,8 @@ public class Challenge {
     private Date endDate;
     private String status;
     private List<ChallengeParticipant> participants;
+    private String creatorName;
+    private int participantCount;
 
     public Challenge() {
     }
@@ -70,5 +72,20 @@ public class Challenge {
     public void setParticipants(List<ChallengeParticipant> participants) {
         this.participants = participants;
     }
-}
 
+    public String getCreatorName() {
+        return creatorName;
+    }
+
+    public void setCreatorName(String creatorName) {
+        this.creatorName = creatorName;
+    }
+
+    public int getParticipantCount() {
+        return participantCount;
+    }
+
+    public void setParticipantCount(int participantCount) {
+        this.participantCount = participantCount;
+    }
+}

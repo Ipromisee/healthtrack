@@ -9,22 +9,50 @@ import java.util.List;
 
 public class UserDAO {
     
+    /**
+     * 获取所有用户
+     */
+    public List<User> getAllUsers() {
+        List<User> users = new ArrayList<>();
+        String sql = "SELECT * FROM USER ORDER BY created_at DESC";
+        
+        try (Connection conn = DBConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            
+            while (rs.next()) {
+                users.add(new User(
+                    rs.getInt("user_id"),
+                    rs.getString("health_id"),
+                    rs.getString("full_name"),
+                    rs.getString("account_status"),
+                    rs.getString("user_role"),
+                    rs.getTimestamp("created_at")
+                ));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return users;
+    }
+    
     public User getUserById(int userId) {
         User user = null;
         String sql = "SELECT * FROM USER WHERE user_id = ?";
-        
+
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
+
             pstmt.setInt(1, userId);
             ResultSet rs = pstmt.executeQuery();
-            
+
             if (rs.next()) {
                 user = new User(
                     rs.getInt("user_id"),
                     rs.getString("health_id"),
                     rs.getString("full_name"),
                     rs.getString("account_status"),
+                    rs.getString("user_role"),
                     rs.getTimestamp("created_at")
                 );
                 user.setEmails(getEmailsByUserId(userId));
@@ -39,13 +67,13 @@ public class UserDAO {
     public User getUserByHealthId(String healthId) {
         User user = null;
         String sql = "SELECT * FROM USER WHERE health_id = ?";
-        
+
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
+
             pstmt.setString(1, healthId);
             ResultSet rs = pstmt.executeQuery();
-            
+
             if (rs.next()) {
                 int userId = rs.getInt("user_id");
                 user = new User(
@@ -53,6 +81,7 @@ public class UserDAO {
                     rs.getString("health_id"),
                     rs.getString("full_name"),
                     rs.getString("account_status"),
+                    rs.getString("user_role"),
                     rs.getTimestamp("created_at")
                 );
                 user.setEmails(getEmailsByUserId(userId));
@@ -65,15 +94,16 @@ public class UserDAO {
     }
     
     public boolean updateUser(User user) {
-        String sql = "UPDATE USER SET full_name = ?, account_status = ? WHERE user_id = ?";
-        
+        String sql = "UPDATE USER SET full_name = ?, account_status = ?, user_role = ? WHERE user_id = ?";
+
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
+
             pstmt.setString(1, user.getFullName());
             pstmt.setString(2, user.getAccountStatus());
-            pstmt.setInt(3, user.getUserId());
-            
+            pstmt.setString(3, user.getUserRole());
+            pstmt.setInt(4, user.getUserId());
+
             return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
