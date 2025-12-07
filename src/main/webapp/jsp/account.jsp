@@ -41,14 +41,7 @@
         <c:if test="${not empty sessionScope.user}">
             <!-- 角色标识卡片 -->
             <div class="role-card role-${sessionScope.user.userRole}">
-                <div class="role-icon">
-                    <c:choose>
-                        <c:when test="${sessionScope.user.userRole == 'Patient'}">👤</c:when>
-                        <c:when test="${sessionScope.user.userRole == 'Provider'}">🩺</c:when>
-                        <c:when test="${sessionScope.user.userRole == 'Caregiver'}">💝</c:when>
-                        <c:when test="${sessionScope.user.userRole == 'Admin'}">⚙️</c:when>
-                    </c:choose>
-                </div>
+                <div class="role-icon" style="display:none;"></div>
                 <div class="role-info">
                     <h3>${sessionScope.user.fullName}</h3>
                     <p>健康ID: ${sessionScope.user.healthId}</p>

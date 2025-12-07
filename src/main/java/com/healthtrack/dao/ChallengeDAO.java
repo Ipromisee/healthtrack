@@ -183,6 +183,50 @@ public class ChallengeDAO {
         }
         return challenges;
     }
+
+    /**
+     * 将已过期但仍标记为进行中的挑战置为过期状态
+     */
+    public void refreshExpiredChallenges() {
+        String sql = "UPDATE CHALLENGE SET status = 'Expired' WHERE end_date < CURRENT_DATE AND status IN ('Active','Draft')";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 获取当前可加入的挑战（状态Active且未过期）
+     */
+    public List<Challenge> getJoinableChallenges() {
+        List<Challenge> challenges = new ArrayList<>();
+        String sql = "SELECT c.*, u.full_name as creator_name " +
+                     "FROM CHALLENGE c " +
+                     "JOIN ACTION a ON c.action_id = a.action_id " +
+                     "JOIN USER u ON a.created_by = u.user_id " +
+                     "WHERE c.status = 'Active' AND c.end_date >= CURRENT_DATE " +
+                     "ORDER BY c.start_date DESC";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                Challenge challenge = new Challenge(
+                    rs.getInt("action_id"),
+                    rs.getString("goal"),
+                    rs.getDate("start_date"),
+                    rs.getDate("end_date"),
+                    rs.getString("status")
+                );
+                challenge.setCreatorName(rs.getString("creator_name"));
+                challenges.add(challenge);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return challenges;
+    }
     
     /**
      * 邀请患者参与挑战
@@ -255,6 +299,58 @@ public class ChallengeDAO {
             pstmt.setString(2, progressUnit);
             pstmt.setInt(3, challengeParticipantId);
             pstmt.setInt(4, userId);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * 用户主动加入挑战（无邀请）
+     */
+    public boolean joinChallengeDirectly(int actionId, int userId) {
+        String sql = "INSERT INTO CHALLENGE_PARTICIPANT (action_id, user_id, participant_status) VALUES (?, ?, 'Joined') " +
+                     "ON DUPLICATE KEY UPDATE participant_status = 'Joined'";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, actionId);
+            pstmt.setInt(2, userId);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * 将进度加一（“今日已完成”）
+     */
+    public boolean markTodayComplete(int challengeParticipantId, int userId) {
+        String sql = "UPDATE CHALLENGE_PARTICIPANT " +
+                     "SET progress_value = COALESCE(progress_value,0) + 1, progress_unit = COALESCE(progress_unit,'天'), updated_at = CURRENT_TIMESTAMP " +
+                     "WHERE challenge_participant_id = ? AND user_id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, challengeParticipantId);
+            pstmt.setInt(2, userId);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * 退出挑战
+     */
+    public boolean leaveChallenge(int challengeParticipantId, int userId) {
+        String sql = "UPDATE CHALLENGE_PARTICIPANT SET participant_status = 'Removed', updated_at = CURRENT_TIMESTAMP " +
+                     "WHERE challenge_participant_id = ? AND user_id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, challengeParticipantId);
+            pstmt.setInt(2, userId);
             return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();

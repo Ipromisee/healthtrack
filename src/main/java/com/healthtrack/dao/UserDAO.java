@@ -293,5 +293,50 @@ public class UserDAO {
             return false;
         }
     }
+
+    /**
+     * 创建新用户，默认状态为未激活，需管理员审核。
+     */
+    public boolean createUser(User user) {
+        String sql = "INSERT INTO USER (health_id, full_name, account_status, user_role) VALUES (?, ?, ?, ?)";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            
+            pstmt.setString(1, user.getHealthId());
+            pstmt.setString(2, user.getFullName());
+            pstmt.setString(3, user.getAccountStatus());
+            pstmt.setString(4, user.getUserRole());
+            
+            int affected = pstmt.executeUpdate();
+            if (affected > 0) {
+                ResultSet rs = pstmt.getGeneratedKeys();
+                if (rs.next()) {
+                    user.setUserId(rs.getInt(1));
+                }
+                return true;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    /**
+     * 获取用户关联的主医生（用于Provider用户找回自己的Provider记录）。
+     */
+    public Integer getPrimaryProviderIdForUser(int userId) {
+        String sql = "SELECT provider_id FROM USER_PROVIDER WHERE user_id = ? AND link_status = 'Active' ORDER BY is_primary DESC, linked_at ASC LIMIT 1";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("provider_id");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 }
 

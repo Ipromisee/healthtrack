@@ -38,14 +38,20 @@
                 </div>
                 <div class="form-group">
                     <label for="providerId">医疗服务提供者：</label>
-                    <select id="providerId" name="providerId">
+                    <select id="providerId" name="providerId" ${not empty lockedProviderId ? 'disabled' : ''}>
                         <option value="">-- 所有提供者 --</option>
                         <c:forEach var="provider" items="${providers}">
-                            <option value="${provider.providerId}" ${searchProviderId == provider.providerId ? 'selected' : ''}>
+                            <option value="${provider.providerId}"
+                                    ${searchProviderId == provider.providerId ? 'selected' : ''}
+                                    ${not empty lockedProviderId && lockedProviderId != provider.providerId ? 'disabled' : ''}>
                                 ${provider.providerName} (${provider.licenseNo})
                             </option>
                         </c:forEach>
                     </select>
+                    <c:if test="${not empty lockedProviderId}">
+                        <input type="hidden" name="providerId" value="${lockedProviderId}">
+                        <small class="form-hint">医生只能查看自己的预约记录</small>
+                    </c:if>
                 </div>
                 <div class="form-group">
                     <label for="consultationType">就诊类型：</label>

@@ -17,6 +17,8 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.sql.Date;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 
 @WebServlet("/summary")
@@ -47,8 +49,11 @@ public class SummaryServlet extends HttpServlet {
         String yearParam = request.getParameter("year");
         String monthParam = request.getParameter("month");
 
-        int year = yearParam != null ? Integer.parseInt(yearParam) : 2024;
-        int month = monthParam != null ? Integer.parseInt(monthParam) : 3;
+        // 默认取上个月
+        LocalDate now = LocalDate.now();
+        YearMonth defaultYm = YearMonth.from(now.minusMonths(1));
+        int year = yearParam != null ? Integer.parseInt(yearParam) : defaultYm.getYear();
+        int month = monthParam != null ? Integer.parseInt(monthParam) : defaultYm.getMonthValue();
         
         MonthlySummary summary = summaryDAO.getMonthlySummary(userId, year, month);
         List<MonthlySummary> allSummaries = summaryDAO.getMonthlySummariesByUserId(userId);
@@ -59,8 +64,9 @@ public class SummaryServlet extends HttpServlet {
         int maxSteps = summaryDAO.getMaxStepsPerMonth(userId, year);
         
         // Date range for appointments
-        Date startDate = Date.valueOf(year + "-" + String.format("%02d", month) + "-01");
-        Date endDate = Date.valueOf(year + "-" + String.format("%02d", month) + "-31");
+        YearMonth ym = YearMonth.of(year, month);
+        Date startDate = Date.valueOf(ym.atDay(1));
+        Date endDate = Date.valueOf(ym.atEndOfMonth());
         int totalAppointments = appointmentDAO.getTotalAppointmentsInRange(userId, startDate, endDate);
         
         // Top challenges

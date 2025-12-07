@@ -33,6 +33,11 @@ public class LoginServlet extends HttpServlet {
         User user = userDAO.getUserByHealthId(healthId.trim());
         
         if (user != null) {
+            if (!"Active".equals(user.getAccountStatus())) {
+                request.setAttribute("error", "账户未激活，请等待管理员审核后再登录");
+                request.getRequestDispatcher("/jsp/index.jsp").forward(request, response);
+                return;
+            }
             HttpSession session = request.getSession();
             session.setAttribute("user", user);
             session.setAttribute("userId", user.getUserId());

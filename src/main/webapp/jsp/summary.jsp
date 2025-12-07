@@ -135,44 +135,46 @@
             </c:if>
         </div>
         
-        <div class="section">
-            <h3>最活跃用户</h3>
-            <c:if test="${not empty mostActiveUsers}">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>健康ID</th>
-                            <th>姓名</th>
-                            <th>账户状态</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <c:forEach var="user" items="${mostActiveUsers}">
+        <c:if test="${sessionScope.user.userRole == 'Admin'}">
+            <div class="section">
+                <h3>最活跃用户</h3>
+                <c:if test="${not empty mostActiveUsers}">
+                    <table>
+                        <thead>
                             <tr>
-                                <td>${user.healthId}</td>
-                                <td>${user.fullName}</td>
-                                <td>
-                                    <c:choose>
-                                        <c:when test="${user.accountStatus == 'Active'}">
-                                            <span class="badge badge-success">活跃</span>
-                                        </c:when>
-                                        <c:when test="${user.accountStatus == 'Inactive'}">
-                                            <span class="badge badge-warning">未激活</span>
-                                        </c:when>
-                                        <c:otherwise>
-                                            <span class="badge badge-warning">${user.accountStatus}</span>
-                                        </c:otherwise>
-                                    </c:choose>
-                                </td>
+                                <th>健康ID</th>
+                                <th>姓名</th>
+                                <th>账户状态</th>
                             </tr>
-                        </c:forEach>
-                    </tbody>
-                </table>
-            </c:if>
-            <c:if test="${empty mostActiveUsers}">
-                <p style="text-align: center; color: #666; padding: 20px;">暂无活跃用户</p>
-            </c:if>
-        </div>
+                        </thead>
+                        <tbody>
+                            <c:forEach var="user" items="${mostActiveUsers}">
+                                <tr>
+                                    <td>${user.healthId}</td>
+                                    <td>${user.fullName}</td>
+                                    <td>
+                                        <c:choose>
+                                            <c:when test="${user.accountStatus == 'Active'}">
+                                                <span class="badge badge-success">活跃</span>
+                                            </c:when>
+                                            <c:when test="${user.accountStatus == 'Inactive'}">
+                                                <span class="badge badge-warning">未激活</span>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <span class="badge badge-warning">${user.accountStatus}</span>
+                                            </c:otherwise>
+                                        </c:choose>
+                                    </td>
+                                </tr>
+                            </c:forEach>
+                        </tbody>
+                    </table>
+                </c:if>
+                <c:if test="${empty mostActiveUsers}">
+                    <p style="text-align: center; color: #666; padding: 20px;">暂无活跃用户</p>
+                </c:if>
+            </div>
+        </c:if>
     </div>
 </body>
 </html>

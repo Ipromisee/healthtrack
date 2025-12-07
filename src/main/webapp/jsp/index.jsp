@@ -25,6 +25,9 @@
             
             <button type="submit" style="width: 100%;">登录</button>
         </form>
+        <p style="margin-top: 15px; text-align: center;">
+            没有账号？<a href="${pageContext.request.contextPath}/register">前往注册</a>
+        </p>
         
         <p style="margin-top: 25px; text-align: center; color: #666; font-size: 14px;">
             示例健康ID：<br>

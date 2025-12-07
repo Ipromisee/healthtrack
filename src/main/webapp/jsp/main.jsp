@@ -18,14 +18,7 @@
         <c:if test="${not empty sessionScope.user}">
             <!-- 用户信息卡片 -->
             <div class="user-welcome-card role-${sessionScope.user.userRole}">
-                <div class="welcome-avatar">
-                    <c:choose>
-                        <c:when test="${sessionScope.user.userRole == 'Patient'}">👤</c:when>
-                        <c:when test="${sessionScope.user.userRole == 'Provider'}">🩺</c:when>
-                        <c:when test="${sessionScope.user.userRole == 'Caregiver'}">💝</c:when>
-                        <c:when test="${sessionScope.user.userRole == 'Admin'}">⚙️</c:when>
-                    </c:choose>
-                </div>
+                <div class="welcome-avatar" style="display:none;"></div>
                 <div class="welcome-info">
                     <h3>欢迎回来，${sessionScope.user.fullName}！</h3>
                     <p>健康ID: <code>${sessionScope.user.healthId}</code></p>
@@ -47,6 +40,38 @@
                             </c:choose>
                         </span>
                     </div>
+                </div>
+            </div>
+        </c:if>
+
+        <!-- 患者待处理照顾者请求（快捷处理） -->
+        <c:if test="${sessionScope.user.userRole == 'Patient' && not empty pendingCaregivers}">
+            <div class="card feature-card">
+                <h3>💝 待处理的照顾者请求</h3>
+                <div class="caregiver-list">
+                    <c:forEach var="cp" items="${pendingCaregivers}">
+                        <div class="caregiver-item pending" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee;">
+                            <div>
+                                <strong>${cp.caregiver.fullName}</strong>
+                                <span style="margin-left:8px;color:#666;">关系: ${cp.relationship}</span>
+                                <c:if test="${not empty cp.notes}">
+                                    <div style="color:#888;font-size:13px;">备注: ${cp.notes}</div>
+                                </c:if>
+                            </div>
+                            <div style="display:flex;gap:8px;">
+                                <form method="post" action="${pageContext.request.contextPath}/account" class="inline-form">
+                                    <input type="hidden" name="action" value="approveCaregiverRequest">
+                                    <input type="hidden" name="caregiverPatientId" value="${cp.caregiverPatientId}">
+                                    <button type="submit" class="btn btn-success btn-small">✓ 批准</button>
+                                </form>
+                                <form method="post" action="${pageContext.request.contextPath}/account" class="inline-form">
+                                    <input type="hidden" name="action" value="rejectCaregiverRequest">
+                                    <input type="hidden" name="caregiverPatientId" value="${cp.caregiverPatientId}">
+                                    <button type="submit" class="btn btn-danger btn-small">✗ 拒绝</button>
+                                </form>
+                            </div>
+                        </div>
+                    </c:forEach>
                 </div>
             </div>
         </c:if>
@@ -92,11 +117,6 @@
                         <span class="menu-icon">🎯</span>
                         <span class="menu-text">创建挑战</span>
                         <span class="menu-desc">为患者创建健康挑战</span>
-                    </a></li>
-                    <li><a href="${pageContext.request.contextPath}/search" class="menu-item">
-                        <span class="menu-icon">🔍</span>
-                        <span class="menu-text">患者搜索</span>
-                        <span class="menu-desc">搜索患者健康记录</span>
                     </a></li>
                 </c:if>
 

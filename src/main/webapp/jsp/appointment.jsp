@@ -35,16 +35,46 @@
         <c:if test="${userRole == 'Patient' || userRole == 'Caregiver'}">
             <div class="section">
                 <h3>新建预约</h3>
+                <c:if test="${userRole == 'Caregiver'}">
+                    <form method="get" action="${pageContext.request.contextPath}/appointment" class="form-inline" style="gap:10px;">
+                        <label for="patientSwitcher">切换患者以查看预约：</label>
+                        <select id="patientSwitcher" name="patientId" onchange="this.form.submit()">
+                            <c:forEach var="cp" items="${patients}">
+                                <option value="${cp.patientId}" ${selectedPatientId == cp.patientId ? 'selected' : ''}>
+                                    ${cp.patient.fullName} (${cp.patient.healthId})
+                                </option>
+                            </c:forEach>
+                        </select>
+                    </form>
+                </c:if>
                 <form method="post" action="${pageContext.request.contextPath}/appointment">
                     <input type="hidden" name="action" value="book">
+                    <c:if test="${userRole == 'Caregiver'}">
+                        <div class="form-group">
+                            <label for="patientId">选择患者：</label>
+                            <select id="patientId" name="patientId" required>
+                                <c:forEach var="cp" items="${patients}">
+                                    <option value="${cp.patientId}" ${selectedPatientId == cp.patientId ? 'selected' : ''}>
+                                        ${cp.patient.fullName} (${cp.patient.healthId})
+                                    </option>
+                                </c:forEach>
+                            </select>
+                        </div>
+                    </c:if>
                     <div class="form-group">
                         <label for="providerId">医疗服务提供者：</label>
                         <select id="providerId" name="providerId" required>
                             <option value="">-- 请选择提供者 --</option>
-                            <c:forEach var="provider" items="${providers}">
-                                <option value="${provider.providerId}">${provider.providerName} (${provider.licenseNo})</option>
+                            <c:forEach var="userProvider" items="${providers}">
+                                <option value="${userProvider.provider.providerId}">
+                                    ${userProvider.provider.providerName} (${userProvider.provider.licenseNo})
+                                    <c:if test="${userProvider.primary}">★</c:if>
+                                </option>
                             </c:forEach>
                         </select>
+                        <c:if test="${empty providers}">
+                            <small class="form-hint">当前没有可用的关联医生，请先在账户页关联</small>
+                        </c:if>
                     </div>
                     <div class="form-group">
                         <label for="scheduledAt">预约日期时间：</label>
@@ -71,6 +101,22 @@
             <div class="section">
                 <h3>预约管理</h3>
                 <p>您可以查看和管理患者的预约请求。</p>
+                <form method="get" action="${pageContext.request.contextPath}/appointment" class="form-inline" style="gap:12px;">
+                    <input type="hidden" name="filter" value="true">
+                    <div class="form-group">
+                        <label for="healthIdFilter">患者健康ID：</label>
+                        <input type="text" id="healthIdFilter" name="healthIdFilter" value="${healthIdFilter}">
+                    </div>
+                    <div class="form-group">
+                        <label for="consultationType">就诊类型：</label>
+                        <select id="consultationType" name="consultationType">
+                            <option value="">全部</option>
+                            <option value="InPerson" ${consultationFilter == 'InPerson' ? 'selected' : ''}>面诊</option>
+                            <option value="Virtual" ${consultationFilter == 'Virtual' ? 'selected' : ''}>远程</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-small">应用筛选</button>
+                </form>
             </div>
         </c:if>
         
@@ -80,6 +126,9 @@
                 <table>
                     <thead>
                         <tr>
+                            <c:if test="${userRole == 'Provider' || userRole == 'Caregiver'}">
+                                <th>患者</th>
+                            </c:if>
                             <th>提供者</th>
                             <th>日期时间</th>
                             <th>类型</th>
@@ -91,6 +140,16 @@
                     <tbody>
                         <c:forEach var="appointment" items="${appointments}">
                             <tr>
+                                <c:if test="${userRole == 'Provider' || userRole == 'Caregiver'}">
+                                    <td>
+                                        <c:choose>
+                                            <c:when test="${appointment.user != null}">
+                                                ${appointment.user.fullName} (${appointment.user.healthId})
+                                            </c:when>
+                                            <c:otherwise> - </c:otherwise>
+                                        </c:choose>
+                                    </td>
+                                </c:if>
                                 <td>${appointment.provider.providerName}</td>
                                 <td><fmt:formatDate value="${appointment.scheduledAt}" pattern="yyyy-MM-dd HH:mm" /></td>
                                 <td>${appointment.consultationType == 'InPerson' ? '面诊' : '远程'}</td>
@@ -107,14 +166,19 @@
                                 </td>
                                 <td>${appointment.memo}</td>
                                 <td>
-                                    <c:if test="${appointment.status == 'Scheduled'}">
-                                        <form method="post" action="${pageContext.request.contextPath}/appointment" style="display: flex; gap: 8px; align-items: center;">
-                                            <input type="hidden" name="action" value="cancel">
-                                            <input type="hidden" name="actionId" value="${appointment.actionId}">
-                                            <input type="text" name="cancelReason" placeholder="取消原因" required style="flex: 1; padding: 8px; border: 2px solid #e0e0e0; border-radius: 6px;">
-                                            <button type="submit" class="btn btn-danger">取消</button>
-                                        </form>
-                                    </c:if>
+                                    <c:choose>
+                                        <c:when test="${appointment.status == 'Scheduled'}">
+                                            <form method="post" action="${pageContext.request.contextPath}/appointment" style="display: flex; gap: 8px; align-items: center;">
+                                                <input type="hidden" name="action" value="cancel">
+                                                <input type="hidden" name="actionId" value="${appointment.actionId}">
+                                                <input type="text" name="cancelReason" placeholder="取消原因" required style="flex: 1; padding: 8px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                                                <button type="submit" class="btn btn-danger">取消</button>
+                                            </form>
+                                        </c:when>
+                                        <c:otherwise>
+                                            <button class="btn btn-small" disabled>不可操作</button>
+                                        </c:otherwise>
+                                    </c:choose>
                                 </td>
                             </tr>
                         </c:forEach>

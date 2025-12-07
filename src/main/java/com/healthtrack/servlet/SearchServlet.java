@@ -2,10 +2,10 @@ package com.healthtrack.servlet;
 
 import com.healthtrack.dao.ProviderDAO;
 import com.healthtrack.dao.SearchDAO;
+import com.healthtrack.dao.UserDAO;
 import com.healthtrack.model.Appointment;
 import com.healthtrack.model.Provider;
 import com.healthtrack.model.User;
-import javax.servlet.http.HttpSession;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -16,11 +16,14 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.sql.Date;
 import java.util.List;
+import java.util.Arrays;
+import java.util.Collections;
 
 @WebServlet("/search")
 public class SearchServlet extends HttpServlet {
     private SearchDAO searchDAO = new SearchDAO();
     private ProviderDAO providerDAO = new ProviderDAO();
+    private UserDAO userDAO = new UserDAO();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -39,8 +42,20 @@ public class SearchServlet extends HttpServlet {
             return;
         }
 
-        List<Provider> providers = providerDAO.getAllProviders();
-        request.setAttribute("providers", providers);
+        if ("Provider".equals(user.getUserRole())) {
+            Integer providerId = userDAO.getPrimaryProviderIdForUser(user.getUserId());
+            if (providerId == null) {
+                request.setAttribute("error", "未找到您的医生身份，请联系管理员绑定");
+                request.getRequestDispatcher("/jsp/main.jsp").forward(request, response);
+                return;
+            }
+            Provider self = providerDAO.getProviderById(providerId);
+            request.setAttribute("providers", self != null ? Arrays.asList(self) : Collections.emptyList());
+            request.setAttribute("lockedProviderId", providerId);
+        } else {
+            List<Provider> providers = providerDAO.getAllProviders();
+            request.setAttribute("providers", providers);
+        }
         request.setAttribute("userRole", user.getUserRole());
         request.getRequestDispatcher("/jsp/search.jsp").forward(request, response);
     }
@@ -53,6 +68,7 @@ public class SearchServlet extends HttpServlet {
             return;
         }
         
+        User user = (User) session.getAttribute("user");
         String healthId = request.getParameter("healthId");
         String providerIdStr = request.getParameter("providerId");
         String consultationType = request.getParameter("consultationType");
@@ -62,6 +78,13 @@ public class SearchServlet extends HttpServlet {
         Integer providerId = null;
         if (providerIdStr != null && !providerIdStr.isEmpty()) {
             providerId = Integer.parseInt(providerIdStr);
+        }
+
+        // 医生只能搜索自己的患者
+        if ("Provider".equals(user.getUserRole())) {
+            Integer selfProviderId = userDAO.getPrimaryProviderIdForUser(user.getUserId());
+            providerId = selfProviderId;
+            providerIdStr = selfProviderId == null ? "" : String.valueOf(selfProviderId);
         }
         
         Date startDate = null;
@@ -76,8 +99,15 @@ public class SearchServlet extends HttpServlet {
         
         List<Appointment> appointments = searchDAO.searchAppointments(healthId, providerId, consultationType, startDate, endDate);
         
-        List<Provider> providers = providerDAO.getAllProviders();
-        request.setAttribute("providers", providers);
+        if ("Provider".equals(user.getUserRole())) {
+            Integer selfProviderId = userDAO.getPrimaryProviderIdForUser(user.getUserId());
+            Provider self = selfProviderId == null ? null : providerDAO.getProviderById(selfProviderId);
+            request.setAttribute("providers", self != null ? Arrays.asList(self) : Collections.emptyList());
+            request.setAttribute("lockedProviderId", selfProviderId);
+        } else {
+            List<Provider> providers = providerDAO.getAllProviders();
+            request.setAttribute("providers", providers);
+        }
         request.setAttribute("appointments", appointments);
         request.setAttribute("searchHealthId", healthId);
         request.setAttribute("searchProviderId", providerIdStr);

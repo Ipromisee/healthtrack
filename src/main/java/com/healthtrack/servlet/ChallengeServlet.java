@@ -1,7 +1,9 @@
 package com.healthtrack.servlet;
 
+import com.healthtrack.dao.CaregiverPatientDAO;
 import com.healthtrack.dao.ChallengeDAO;
 import com.healthtrack.dao.UserDAO;
+import com.healthtrack.model.CaregiverPatient;
 import com.healthtrack.model.Challenge;
 import com.healthtrack.model.ChallengeParticipant;
 import com.healthtrack.model.User;
@@ -14,13 +16,16 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.sql.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @WebServlet("/challenge")
 public class ChallengeServlet extends HttpServlet {
     private ChallengeDAO challengeDAO = new ChallengeDAO();
     private UserDAO userDAO = new UserDAO();
+    private CaregiverPatientDAO caregiverPatientDAO = new CaregiverPatientDAO();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -35,6 +40,8 @@ public class ChallengeServlet extends HttpServlet {
         int userId = user.getUserId();
 
         request.setAttribute("userRole", userRole);
+        // 同步状态，过期挑战自动标记
+        challengeDAO.refreshExpiredChallenges();
 
         switch (userRole) {
             case "Provider":
@@ -50,7 +57,6 @@ public class ChallengeServlet extends HttpServlet {
                 break;
                 
             case "Patient":
-            case "Caregiver":
                 // 患者和照顾者可以查看被邀请的挑战
                 List<ChallengeParticipant> allInvitations = challengeDAO.getInvitedChallenges(userId);
                 
@@ -64,6 +70,19 @@ public class ChallengeServlet extends HttpServlet {
                 
                 request.setAttribute("pendingInvitations", pendingInvitations);
                 request.setAttribute("joinedChallenges", joinedChallenges);
+                // 可自由加入的挑战
+                request.setAttribute("joinableChallenges", challengeDAO.getJoinableChallenges());
+                break;
+
+            case "Caregiver":
+                // 显示关联患者的挑战列表
+                List<CaregiverPatient> patients = caregiverPatientDAO.getPatientsByCaregiver(userId);
+                Map<Integer, List<ChallengeParticipant>> patientChallenges = new HashMap<>();
+                for (CaregiverPatient cp : patients) {
+                    patientChallenges.put(cp.getPatientId(), challengeDAO.getInvitedChallenges(cp.getPatientId()));
+                }
+                request.setAttribute("patients", patients);
+                request.setAttribute("patientChallenges", patientChallenges);
                 break;
                 
             case "Admin":
@@ -133,6 +152,19 @@ public class ChallengeServlet extends HttpServlet {
             case "updateProgress":
                 // 患者可以更新进度
                 handleUpdateProgress(request, userId);
+                break;
+            case "joinChallenge":
+                if (!"Patient".equals(userRole)) {
+                    request.setAttribute("error", "只有患者可以主动加入挑战");
+                    break;
+                }
+                handleJoinChallenge(request, userId);
+                break;
+            case "markToday":
+                handleMarkToday(request, userId);
+                break;
+            case "leaveChallenge":
+                handleLeaveChallenge(request, userId);
                 break;
                 
             default:
@@ -230,6 +262,45 @@ public class ChallengeServlet extends HttpServlet {
             }
         } catch (Exception e) {
             request.setAttribute("error", "更新进度时发生错误: " + e.getMessage());
+        }
+    }
+
+    private void handleJoinChallenge(HttpServletRequest request, int userId) {
+        try {
+            int actionId = Integer.parseInt(request.getParameter("actionId"));
+            if (challengeDAO.joinChallengeDirectly(actionId, userId)) {
+                request.setAttribute("success", "已加入该健康挑战");
+            } else {
+                request.setAttribute("error", "加入挑战失败");
+            }
+        } catch (Exception e) {
+            request.setAttribute("error", "加入挑战时发生错误: " + e.getMessage());
+        }
+    }
+
+    private void handleMarkToday(HttpServletRequest request, int userId) {
+        try {
+            int challengeParticipantId = Integer.parseInt(request.getParameter("challengeParticipantId"));
+            if (challengeDAO.markTodayComplete(challengeParticipantId, userId)) {
+                request.setAttribute("success", "已记录今日完成");
+            } else {
+                request.setAttribute("error", "记录失败");
+            }
+        } catch (Exception e) {
+            request.setAttribute("error", "更新状态时发生错误: " + e.getMessage());
+        }
+    }
+
+    private void handleLeaveChallenge(HttpServletRequest request, int userId) {
+        try {
+            int challengeParticipantId = Integer.parseInt(request.getParameter("challengeParticipantId"));
+            if (challengeDAO.leaveChallenge(challengeParticipantId, userId)) {
+                request.setAttribute("success", "已退出该挑战");
+            } else {
+                request.setAttribute("error", "退出挑战失败");
+            }
+        } catch (Exception e) {
+            request.setAttribute("error", "退出挑战时发生错误: " + e.getMessage());
         }
     }
 }

@@ -194,6 +194,100 @@ public class AppointmentDAO {
         }
         return appointments;
     }
+
+    /**
+     * 获取指定医生（provider_id）的所有预约，包含患者信息。
+     */
+    public List<Appointment> getAppointmentsByProvider(int providerId) {
+        List<Appointment> appointments = new ArrayList<>();
+        String sql = "SELECT a.*, ap.*, p.provider_name, p.license_no, u.user_id, u.full_name, u.health_id " +
+                     "FROM APPOINTMENT ap " +
+                     "JOIN ACTION a ON ap.action_id = a.action_id " +
+                     "JOIN PROVIDER p ON ap.provider_id = p.provider_id " +
+                     "JOIN USER u ON a.created_by = u.user_id " +
+                     "WHERE ap.provider_id = ? " +
+                     "ORDER BY ap.scheduled_at DESC";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, providerId);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                Appointment appointment = new Appointment(
+                    rs.getInt("action_id"),
+                    rs.getInt("provider_id"),
+                    rs.getTimestamp("scheduled_at"),
+                    rs.getString("consultation_type"),
+                    rs.getString("memo"),
+                    rs.getString("status"),
+                    rs.getString("cancel_reason"),
+                    rs.getTimestamp("cancel_time")
+                );
+
+                Provider provider = new Provider();
+                provider.setProviderId(rs.getInt("provider_id"));
+                provider.setProviderName(rs.getString("provider_name"));
+                provider.setLicenseNo(rs.getString("license_no"));
+                appointment.setProvider(provider);
+
+                User user = new User();
+                user.setUserId(rs.getInt("user_id"));
+                user.setFullName(rs.getString("full_name"));
+                user.setHealthId(rs.getString("health_id"));
+                appointment.setUser(user);
+
+                appointments.add(appointment);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return appointments;
+    }
+
+    /**
+     * 按编号获取预约，包含患者和医生信息，用于权限校验。
+     */
+    public Appointment getAppointmentWithUser(int actionId) {
+        String sql = "SELECT a.*, ap.*, p.provider_name, p.license_no, u.user_id, u.full_name, u.health_id " +
+                     "FROM APPOINTMENT ap " +
+                     "JOIN ACTION a ON ap.action_id = a.action_id " +
+                     "JOIN PROVIDER p ON ap.provider_id = p.provider_id " +
+                     "JOIN USER u ON a.created_by = u.user_id " +
+                     "WHERE ap.action_id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, actionId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                Appointment appointment = new Appointment(
+                    rs.getInt("action_id"),
+                    rs.getInt("provider_id"),
+                    rs.getTimestamp("scheduled_at"),
+                    rs.getString("consultation_type"),
+                    rs.getString("memo"),
+                    rs.getString("status"),
+                    rs.getString("cancel_reason"),
+                    rs.getTimestamp("cancel_time")
+                );
+
+                Provider provider = new Provider();
+                provider.setProviderId(rs.getInt("provider_id"));
+                provider.setProviderName(rs.getString("provider_name"));
+                provider.setLicenseNo(rs.getString("license_no"));
+                appointment.setProvider(provider);
+
+                User user = new User();
+                user.setUserId(rs.getInt("user_id"));
+                user.setFullName(rs.getString("full_name"));
+                user.setHealthId(rs.getString("health_id"));
+                appointment.setUser(user);
+                return appointment;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
     
     public int getTotalAppointmentsInRange(int userId, Date startDate, Date endDate) {
         String sql = "SELECT COUNT(*) as total FROM ACTION a " +

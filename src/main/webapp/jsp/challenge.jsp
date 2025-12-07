@@ -145,8 +145,8 @@
             </div>
         </c:if>
         
-        <!-- ==================== 患者/照顾者视图 ==================== -->
-        <c:if test="${userRole == 'Patient' || userRole == 'Caregiver'}">
+        <!-- ==================== 患者视图 ==================== -->
+        <c:if test="${userRole == 'Patient'}">
             <!-- 待处理的邀请 -->
             <c:if test="${not empty pendingInvitations}">
                 <div class="section pending-section">
@@ -175,6 +175,33 @@
                                         <button type="submit" class="btn btn-danger">✗ 拒绝</button>
                                     </form>
                                 </div>
+                            </div>
+                        </c:forEach>
+                    </div>
+                </div>
+            </c:if>
+
+            <!-- 可加入的挑战 -->
+            <c:if test="${not empty joinableChallenges}">
+                <div class="section">
+                    <h3>🆕 加入已有的挑战</h3>
+                    <div class="challenge-grid">
+                        <c:forEach var="challenge" items="${joinableChallenges}">
+                            <div class="challenge-card">
+                                <div class="challenge-header">
+                                    <span class="challenge-goal">${challenge.goal}</span>
+                                    <span class="badge badge-success">进行中</span>
+                                </div>
+                                <div class="challenge-meta">
+                                    <p>👨‍⚕️ 发起者: ${challenge.creatorName}</p>
+                                    <p>📅 <fmt:formatDate value="${challenge.startDate}" pattern="yyyy-MM-dd" /> 
+                                       至 <fmt:formatDate value="${challenge.endDate}" pattern="yyyy-MM-dd" /></p>
+                                </div>
+                                <form method="post" action="${pageContext.request.contextPath}/challenge" class="inline-form">
+                                    <input type="hidden" name="action" value="joinChallenge">
+                                    <input type="hidden" name="actionId" value="${challenge.actionId}">
+                                    <button type="submit" class="btn btn-success">加入挑战</button>
+                                </form>
                             </div>
                         </c:forEach>
                     </div>
@@ -215,6 +242,18 @@
                                             <button type="submit" class="btn-small">更新</button>
                                         </div>
                                     </form>
+                                    <div class="invitation-actions">
+                                        <form method="post" action="${pageContext.request.contextPath}/challenge" class="inline-form">
+                                            <input type="hidden" name="action" value="markToday">
+                                            <input type="hidden" name="challengeParticipantId" value="${participation.challengeParticipantId}">
+                                            <button type="submit" class="btn btn-success btn-small">今日已完成</button>
+                                        </form>
+                                        <form method="post" action="${pageContext.request.contextPath}/challenge" class="inline-form">
+                                            <input type="hidden" name="action" value="leaveChallenge">
+                                            <input type="hidden" name="challengeParticipantId" value="${participation.challengeParticipantId}">
+                                            <button type="submit" class="btn btn-danger btn-small">退出挑战</button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         </c:forEach>
@@ -226,6 +265,49 @@
                         <p class="empty-hint">当医疗服务提供者邀请您参与挑战时，您会在这里看到通知。</p>
                     </div>
                 </c:if>
+            </div>
+        </c:if>
+
+        <!-- ==================== 照顾者视图 ==================== -->
+        <c:if test="${userRole == 'Caregiver'}">
+            <div class="section">
+                <h3>💝 关联患者的挑战</h3>
+                <c:if test="${empty patients}">
+                    <p class="empty-message">请先在“患者监护”里关联患者</p>
+                </c:if>
+                <c:forEach var="cp" items="${patients}">
+                    <div class="challenge-card joined">
+                        <div class="challenge-header">
+                            <span class="challenge-goal">${cp.patient.fullName} (${cp.patient.healthId})</span>
+                            <span class="badge badge-info">${cp.relationship}</span>
+                        </div>
+                        <c:if test="${empty patientChallenges[cp.patientId]}">
+                            <p class="empty-message">该患者暂无挑战记录</p>
+                        </c:if>
+                        <c:if test="${not empty patientChallenges[cp.patientId]}">
+                            <div class="challenge-grid">
+                                <c:forEach var="participation" items="${patientChallenges[cp.patientId]}">
+                                    <div class="challenge-card">
+                                        <div class="challenge-header">
+                                            <span class="challenge-goal">${participation.challenge.goal}</span>
+                                            <span class="badge ${participation.participantStatus == 'Joined' ? 'badge-success' : 'badge-warning'}">
+                                                ${participation.participantStatus == 'Joined' ? '已加入' : '待处理'}
+                                            </span>
+                                        </div>
+                                        <div class="challenge-meta">
+                                            <p>👨‍⚕️ 发起者: ${participation.challenge.creatorName}</p>
+                                            <p>📅 <fmt:formatDate value="${participation.challenge.startDate}" pattern="yyyy-MM-dd" /> 
+                                               至 <fmt:formatDate value="${participation.challenge.endDate}" pattern="yyyy-MM-dd" /></p>
+                                            <c:if test="${participation.progressValue != null}">
+                                                <p>进度: ${participation.progressValue} ${participation.progressUnit}</p>
+                                            </c:if>
+                                        </div>
+                                    </div>
+                                </c:forEach>
+                            </div>
+                        </c:if>
+                    </div>
+                </c:forEach>
             </div>
         </c:if>
         
@@ -286,10 +368,11 @@
                                     <td><fmt:formatDate value="${challenge.startDate}" pattern="yyyy-MM-dd" /></td>
                                     <td><fmt:formatDate value="${challenge.endDate}" pattern="yyyy-MM-dd" /></td>
                                     <td>
-                                        <span class="badge ${challenge.status == 'Active' ? 'badge-success' : challenge.status == 'Draft' ? 'badge-warning' : 'badge-info'}">
+                                        <span class="badge ${challenge.status == 'Active' ? 'badge-success' : challenge.status == 'Draft' ? 'badge-warning' : (challenge.status == 'Expired' ? 'badge-danger' : 'badge-info')}">
                                             <c:choose>
                                                 <c:when test="${challenge.status == 'Draft'}">草稿</c:when>
                                                 <c:when test="${challenge.status == 'Active'}">进行中</c:when>
+                                                <c:when test="${challenge.status == 'Expired'}">已结束</c:when>
                                                 <c:otherwise>${challenge.status}</c:otherwise>
                                             </c:choose>
                                         </span>
